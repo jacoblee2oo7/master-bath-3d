@@ -514,7 +514,7 @@
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 0.92;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     const scene = new THREE.Scene();
@@ -542,16 +542,16 @@
     // ----------------------------------------------------
     // 2. Realistic Architectural Lighting
     // ----------------------------------------------------
-    // Ambient soft fill
-    const ambientLight = new THREE.AmbientLight(0xfff5ea, 0.85);
+    // Warm soft ambient fill (tuned for rich contrast with IBL environment)
+    const ambientLight = new THREE.AmbientLight(0xffeedd, 0.35);
     scene.add(ambientLight);
 
-    // Warm ceiling bounce
-    const hemiLight = new THREE.HemisphereLight(0xfffaed, 0x1e293b, 0.7);
+    // Warm ceiling bounce & floor shadow gradient
+    const hemiLight = new THREE.HemisphereLight(0xfff7ea, 0x1a2332, 0.45);
     scene.add(hemiLight);
 
     // Window sunlight (from garden window on South wall at Z = -0.5m)
-    const sunLight = new THREE.DirectionalLight(0xfffae0, 1.6);
+    const sunLight = new THREE.DirectionalLight(0xfffae0, 1.15);
     sunLight.position.set(1.9, 2.5, 0.8);
     sunLight.target.position.set(1.6, 0.8, -1.5);
     sunLight.castShadow = true;
@@ -562,12 +562,12 @@
     scene.add(sunLight.target);
 
     // Vanity mirror LED glow (North wall at Z = -2.55m)
-    const vanityGlow = new THREE.PointLight(0xffeedd, 1.8, 4.0);
-    vanityGlow.position.set(2.13, 1.8, -2.2);
+    const vanityGlow = new THREE.PointLight(0xffdfb0, 1.2, 3.5);
+    vanityGlow.position.set(2.13, 1.9, -2.1);
     scene.add(vanityGlow);
 
     // Shower recessed niche light
-    const showerLight = new THREE.PointLight(0xffffff, 1.2, 3.5);
+    const showerLight = new THREE.PointLight(0xffffff, 1.0, 3.5);
     showerLight.position.set(0.65, 2.1, -2.1);
     scene.add(showerLight);
 
@@ -594,11 +594,13 @@
     floorMap.wrapT = THREE.RepeatWrapping;
     floorMap.repeat.set(3, 3);
 
-    // 3. Kit-Kat Vertical Finger Feature Tile Wall
+    // 3. Kit-Kat Vertical Finger Feature Tile Wall (Rotated 90 deg for vertical orientation)
     const kitkatMap = textureLoader.load('textures/kitkat_tile.jpg');
     kitkatMap.wrapS = THREE.RepeatWrapping;
     kitkatMap.wrapT = THREE.RepeatWrapping;
-    kitkatMap.repeat.set(6, 4);
+    kitkatMap.center.set(0.5, 0.5);
+    kitkatMap.rotation = Math.PI / 2;
+    kitkatMap.repeat.set(16, 6);
 
     // 4. Calacatta Quartz Countertop
     const quartzMap = textureLoader.load('textures/calacatta_quartz.jpg');
@@ -626,25 +628,33 @@
             const name = child.name || '';
             const matName = (child.material && child.material.name) ? child.material.name : '';
 
-            // A. White Oak Cabinetry & Shelves
-            if (matName.includes('White_Oak') || name.startsWith('Vanity_Drawer') || name.startsWith('Vanity_Cabinet') || name.startsWith('Toilet_Shelf_Oak') || name.includes('Trinket_Tray')) {
+            // A. J-Pull Recess Shadow Channels
+            if (name.includes('JPull_Recess')) {
               child.material = new THREE.MeshStandardMaterial({
-                map: oakMap,
-                color: new THREE.Color(0xd4b592),
-                roughness: 0.45,
-                metalness: 0.05
+                color: new THREE.Color(0x22180e),
+                roughness: 0.85,
+                metalness: 0.0
               });
             }
-            // B. Kit-Kat Feature Tile Wall (Behind Vanity)
+            // B. White Oak Cabinetry & Shelves
+            else if (matName.includes('White_Oak') || name.startsWith('Vanity_Drawer') || name.startsWith('Vanity_Cabinet') || name.startsWith('Toilet_Shelf_Oak') || name.includes('Trinket_Tray')) {
+              child.material = new THREE.MeshStandardMaterial({
+                map: oakMap,
+                color: new THREE.Color(0xdfbe99),
+                roughness: 0.48,
+                metalness: 0.02
+              });
+            }
+            // C. Kit-Kat Feature Tile Wall (Behind Vanity)
             else if (matName.includes('Shower_Tile_North') || name.includes('Vanity_Tile_Feature_Wall')) {
               child.material = new THREE.MeshStandardMaterial({
                 map: kitkatMap,
-                color: new THREE.Color(0xf5f3ec),
-                roughness: 0.3,
-                metalness: 0.05
+                color: new THREE.Color(0xf6f4ed),
+                roughness: 0.32,
+                metalness: 0.03
               });
             }
-            // C. 24x48 Travertine Floor Tile
+            // D. 24x48 Travertine Floor Tile
             else if (matName.includes('Floor_Tile') || name.includes('Floor_Slab')) {
               child.material = new THREE.MeshStandardMaterial({
                 map: floorMap,
@@ -653,7 +663,7 @@
                 metalness: 0.05
               });
             }
-            // D. Shower Porcelain Tile (West & North inside shower)
+            // E. Shower Porcelain Tile (West & North inside shower)
             else if (matName.includes('Shower_Tile_West') || name.includes('Shower_Tile_Back') || name.includes('Shower_Niche_Back')) {
               child.material = new THREE.MeshStandardMaterial({
                 map: floorMap,
@@ -662,7 +672,7 @@
                 metalness: 0.05
               });
             }
-            // E. Calacatta Quartz Countertop, Backsplash & Niche Sill
+            // F. Calacatta Quartz Countertop, Backsplash & Niche Sill
             else if (matName.includes('Calacatta_Quartz') || name.startsWith('Vanity_Counter') || name.includes('Backsplash') || name.includes('Niche_Sill')) {
               child.material = new THREE.MeshStandardMaterial({
                 map: quartzMap,
@@ -671,19 +681,19 @@
                 metalness: 0.05
               });
             }
-            // F. Arched Mirror Glass (Photorealistic Reflections)
+            // G. Arched Mirror Glass (Photorealistic True Mirror Reflection)
             else if (matName.includes('Mirror') || name.startsWith('Mirror_Glass')) {
               child.material = new THREE.MeshStandardMaterial({
-                color: new THREE.Color(0xffffff),
-                metalness: 0.98,
-                roughness: 0.02,
-                envMapIntensity: 2.0
+                color: new THREE.Color(0x0e0e0e),
+                metalness: 1.0,
+                roughness: 0.0,
+                envMapIntensity: 1.35
               });
             }
-            // G. Mirror Backlight Frame (Warm 3000K LED Halo Glow)
+            // H. Mirror Backlight Frame (Warm 3000K LED Halo Glow)
             else if (name.startsWith('Mirror_Backlight_Frame')) {
               child.material = new THREE.MeshBasicMaterial({
-                color: new THREE.Color(0xfff1dc)
+                color: new THREE.Color(0xffe2b3)
               });
             }
             // H. Brushed Brass / Champagne Bronze Fixtures
