@@ -519,6 +519,7 @@
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0c1322);
+    window.scene = scene;
 
     // Eye-level constant (5' 1" AFF = 1.55m)
     const EYE_HEIGHT = 1.55;
@@ -571,6 +572,41 @@
     scene.add(showerLight);
 
     // ----------------------------------------------------
+    // 2b. High-Res PBR Material Textures & Environment Map
+    // ----------------------------------------------------
+    const textureLoader = new THREE.TextureLoader();
+
+    // Environment reflection map (real 360 panorama of this bathroom)
+    textureLoader.load('renders/bathroom_360_panorama.jpg', (panoTex) => {
+      panoTex.mapping = THREE.EquirectangularReflectionMapping;
+      scene.environment = panoTex;
+    });
+
+    // 1. Natural White Oak (Vanity & Shelves)
+    const oakMap = textureLoader.load('textures/white_oak.jpg');
+    oakMap.wrapS = THREE.RepeatWrapping;
+    oakMap.wrapT = THREE.RepeatWrapping;
+    oakMap.repeat.set(2, 2);
+
+    // 2. Travertine Floor Tile
+    const floorMap = textureLoader.load('textures/floor_travertine.jpg');
+    floorMap.wrapS = THREE.RepeatWrapping;
+    floorMap.wrapT = THREE.RepeatWrapping;
+    floorMap.repeat.set(3, 3);
+
+    // 3. Kit-Kat Vertical Finger Feature Tile Wall
+    const kitkatMap = textureLoader.load('textures/kitkat_tile.jpg');
+    kitkatMap.wrapS = THREE.RepeatWrapping;
+    kitkatMap.wrapT = THREE.RepeatWrapping;
+    kitkatMap.repeat.set(6, 4);
+
+    // 4. Calacatta Quartz Countertop
+    const quartzMap = textureLoader.load('textures/calacatta_quartz.jpg');
+    quartzMap.wrapS = THREE.RepeatWrapping;
+    quartzMap.wrapT = THREE.RepeatWrapping;
+    quartzMap.repeat.set(2, 1);
+
+    // ----------------------------------------------------
     // 3. Load 3D Dollhouse Model (.glb)
     // ----------------------------------------------------
     const loader = new GLTFLoader();
@@ -586,9 +622,112 @@
           if (child.isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
-            if (child.material) {
-              child.material.roughness = Math.max(child.material.roughness, 0.15);
-              child.material.envMapIntensity = 1.0;
+
+            const name = child.name || '';
+            const matName = (child.material && child.material.name) ? child.material.name : '';
+
+            // A. White Oak Cabinetry & Shelves
+            if (matName.includes('White_Oak') || name.startsWith('Vanity_Drawer') || name.startsWith('Vanity_Cabinet') || name.startsWith('Toilet_Shelf_Oak') || name.includes('Trinket_Tray')) {
+              child.material = new THREE.MeshStandardMaterial({
+                map: oakMap,
+                color: new THREE.Color(0xd4b592),
+                roughness: 0.45,
+                metalness: 0.05
+              });
+            }
+            // B. Kit-Kat Feature Tile Wall (Behind Vanity)
+            else if (matName.includes('Shower_Tile_North') || name.includes('Vanity_Tile_Feature_Wall')) {
+              child.material = new THREE.MeshStandardMaterial({
+                map: kitkatMap,
+                color: new THREE.Color(0xf5f3ec),
+                roughness: 0.3,
+                metalness: 0.05
+              });
+            }
+            // C. 24x48 Travertine Floor Tile
+            else if (matName.includes('Floor_Tile') || name.includes('Floor_Slab')) {
+              child.material = new THREE.MeshStandardMaterial({
+                map: floorMap,
+                color: new THREE.Color(0xded7cc),
+                roughness: 0.45,
+                metalness: 0.05
+              });
+            }
+            // D. Shower Porcelain Tile (West & North inside shower)
+            else if (matName.includes('Shower_Tile_West') || name.includes('Shower_Tile_Back') || name.includes('Shower_Niche_Back')) {
+              child.material = new THREE.MeshStandardMaterial({
+                map: floorMap,
+                color: new THREE.Color(0xe2dbd0),
+                roughness: 0.4,
+                metalness: 0.05
+              });
+            }
+            // E. Calacatta Quartz Countertop, Backsplash & Niche Sill
+            else if (matName.includes('Calacatta_Quartz') || name.startsWith('Vanity_Counter') || name.includes('Backsplash') || name.includes('Niche_Sill')) {
+              child.material = new THREE.MeshStandardMaterial({
+                map: quartzMap,
+                color: new THREE.Color(0xfcfcfb),
+                roughness: 0.12,
+                metalness: 0.05
+              });
+            }
+            // F. Arched Mirror Glass (Photorealistic Reflections)
+            else if (matName.includes('Mirror') || name.startsWith('Mirror_Glass')) {
+              child.material = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(0xffffff),
+                metalness: 0.98,
+                roughness: 0.02,
+                envMapIntensity: 2.0
+              });
+            }
+            // G. Mirror Backlight Frame (Warm 3000K LED Halo Glow)
+            else if (name.startsWith('Mirror_Backlight_Frame')) {
+              child.material = new THREE.MeshBasicMaterial({
+                color: new THREE.Color(0xfff1dc)
+              });
+            }
+            // H. Brushed Brass / Champagne Bronze Fixtures
+            else if (matName.includes('Brushed_Brass') || name.startsWith('Faucet') || name.startsWith('Shower_Rain') || name.startsWith('Shower_Slide') || name.startsWith('Tub_Filler') || name.startsWith('Shower_Handheld') || name.startsWith('Towel_Bar')) {
+              child.material = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(0xc9a055),
+                metalness: 0.88,
+                roughness: 0.28,
+                envMapIntensity: 1.6
+              });
+            }
+            // I. Clear Tempered Glass
+            else if (matName.includes('Clear_Glass') || name.startsWith('Shower_Glass')) {
+              child.material = new THREE.MeshPhysicalMaterial ? new THREE.MeshPhysicalMaterial({
+                color: new THREE.Color(0xffffff),
+                transparent: true,
+                opacity: 0.28,
+                roughness: 0.05,
+                metalness: 0.05,
+                transmission: 0.92,
+                ior: 1.5
+              }) : new THREE.MeshStandardMaterial({
+                color: new THREE.Color(0xffffff),
+                transparent: true,
+                opacity: 0.3,
+                roughness: 0.05,
+                metalness: 0.1
+              });
+            }
+            // J. Soaking Tub & Toilet (Gloss / Matte White)
+            else if (matName.includes('Stone_Resin') || name.includes('Tub') || name.includes('Toilet')) {
+              child.material = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(0xfcfcfc),
+                roughness: 0.25,
+                metalness: 0.02
+              });
+            }
+            // K. Wall Paint (Warm Alabaster White)
+            else if (matName.includes('Wall_Paint') || name.startsWith('Wall_')) {
+              child.material = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(0xf7f5f0),
+                roughness: 0.82,
+                metalness: 0.02
+              });
             }
           }
         });
