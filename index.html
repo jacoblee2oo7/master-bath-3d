@@ -516,6 +516,7 @@
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.92;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    window.renderer = renderer;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0c1322);
@@ -526,6 +527,7 @@
 
     // First Person Camera
     const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 50);
+    window.camera = camera;
     // Start at Door Entrance
     camera.position.set(2.95, EYE_HEIGHT, -1.58);
 
@@ -594,15 +596,23 @@
     floorMap.wrapT = THREE.RepeatWrapping;
     floorMap.repeat.set(3, 3);
 
-    // 3. Kit-Kat Vertical Finger Feature Tile Wall (Rotated 90 deg for vertical orientation)
+    // 3. Horizontal Kit-Kat Finger Feature Tile (Ivy Hill Motif Stacked White Matte 5.7" x 0.87")
     const kitkatMap = textureLoader.load('textures/kitkat_tile.jpg');
     kitkatMap.wrapS = THREE.RepeatWrapping;
     kitkatMap.wrapT = THREE.RepeatWrapping;
-    kitkatMap.center.set(0.5, 0.5);
-    kitkatMap.rotation = Math.PI / 2;
-    kitkatMap.repeat.set(16, 6);
+    kitkatMap.repeat.set(1.7268, 1.4142); // 4 tiles / 0.5791m X, 32 rows / 0.7071m Y in world space meters
 
-    // 4. Calacatta Quartz Countertop
+    const kitkatNormalMap = textureLoader.load('textures/kitkat_normal.jpg');
+    kitkatNormalMap.wrapS = THREE.RepeatWrapping;
+    kitkatNormalMap.wrapT = THREE.RepeatWrapping;
+    kitkatNormalMap.repeat.set(1.7268, 1.4142);
+
+    const kitkatRoughnessMap = textureLoader.load('textures/kitkat_roughness.jpg');
+    kitkatRoughnessMap.wrapS = THREE.RepeatWrapping;
+    kitkatRoughnessMap.wrapT = THREE.RepeatWrapping;
+    kitkatRoughnessMap.repeat.set(1.7268, 1.4142);
+
+    // 4. Calacatta Quartz Countertop, Backsplash, Niche Backing & Shower Curb Sills
     const quartzMap = textureLoader.load('textures/calacatta_quartz.jpg');
     quartzMap.wrapS = THREE.RepeatWrapping;
     quartzMap.wrapT = THREE.RepeatWrapping;
@@ -645,39 +655,67 @@
                 metalness: 0.02
               });
             }
-            // C. Kit-Kat Feature Tile Wall (Behind Vanity)
-            else if (matName.includes('Shower_Tile_North') || name.includes('Vanity_Tile_Feature_Wall')) {
+            // C. Kit-Kat Horizontal Feature Tile (Vanity Wall, Shower North Wall & Shower West Plumbing Wall)
+            else if (name.includes('Shower_Tile_Back_Wall') || name.includes('Shower_Tile_Top_Wall') || name.includes('Vanity_Tile_Feature_Wall') || matName.includes('Shower_Tile_North') || matName.includes('Shower_Tile_West')) {
+              child.geometry = child.geometry.clone();
+              const posAttr = child.geometry.attributes.position;
+              const count = posAttr.count;
+              const uvArray = new Float32Array(count * 2);
+              child.updateMatrixWorld(true);
+
+              const v = new THREE.Vector3();
+              const isWestWall = name.includes('Back') || name.includes('West') || matName.includes('West');
+
+              for (let i = 0; i < count; i++) {
+                v.fromBufferAttribute(posAttr, i);
+                v.applyMatrix4(child.matrixWorld);
+
+                let uMeters, vMeters;
+                if (isWestWall) {
+                  // West plumbing wet wall: runs along Z away from North corner at Z = -2.8321m
+                  uMeters = Math.abs(v.z - (-2.8321));
+                  vMeters = v.y; // Height above finished floor in meters
+                } else {
+                  // North feature wall (Shower side wall & Vanity wall): runs along X from West corner X = 0
+                  uMeters = v.x;
+                  vMeters = v.y; // Height above finished floor in meters
+                }
+
+                uvArray[i * 2] = uMeters;
+                uvArray[i * 2 + 1] = vMeters;
+              }
+
+              child.geometry.setAttribute('uv', new THREE.BufferAttribute(uvArray, 2));
+              child.geometry.attributes.uv.needsUpdate = true;
+              if (child.geometry.computeTangents) {
+                try { child.geometry.computeTangents(); } catch(e) {}
+              }
+
               child.material = new THREE.MeshStandardMaterial({
                 map: kitkatMap,
-                color: new THREE.Color(0xf6f4ed),
-                roughness: 0.32,
-                metalness: 0.03
+                normalMap: kitkatNormalMap,
+                normalScale: new THREE.Vector2(0.45, 0.45),
+                roughnessMap: kitkatRoughnessMap,
+                roughness: 0.36,
+                metalness: 0.02,
+                color: new THREE.Color(0xf6f4ed)
               });
             }
-            // D. 24x48 Travertine Floor Tile
-            else if (matName.includes('Floor_Tile') || name.includes('Floor_Slab')) {
-              child.material = new THREE.MeshStandardMaterial({
-                map: floorMap,
-                color: new THREE.Color(0xded7cc),
-                roughness: 0.45,
-                metalness: 0.05
-              });
-            }
-            // E. Shower Porcelain Tile (West & North inside shower)
-            else if (matName.includes('Shower_Tile_West') || name.includes('Shower_Tile_Back') || name.includes('Shower_Niche_Back')) {
-              child.material = new THREE.MeshStandardMaterial({
-                map: floorMap,
-                color: new THREE.Color(0xe2dbd0),
-                roughness: 0.4,
-                metalness: 0.05
-              });
-            }
-            // F. Calacatta Quartz Countertop, Backsplash & Niche Sill
-            else if (matName.includes('Calacatta_Quartz') || name.startsWith('Vanity_Counter') || name.includes('Backsplash') || name.includes('Niche_Sill')) {
+            // D. Calacatta Quartz: Countertop, Backsplash, Shower Curb Sills, & Recessed Niche Backing/Sill
+            else if (matName.includes('Calacatta_Quartz') || name.startsWith('Vanity_Counter') || name.includes('Backsplash') || name.includes('Niche_') || name.includes('Shower_Curb')) {
               child.material = new THREE.MeshStandardMaterial({
                 map: quartzMap,
                 color: new THREE.Color(0xfcfcfb),
                 roughness: 0.12,
+                metalness: 0.04
+              });
+            }
+            // E. 24x48 Corso Italia Travertine Floor Tile & Sloped Shower Pan
+            else if (matName.includes('Floor_Tile') || name.includes('Floor_Slab') || name.includes('Shower_Pan')) {
+              child.material = new THREE.MeshStandardMaterial({
+                map: floorMap,
+                color: new THREE.Color(0xded7cc),
+                roughness: 0.45,
                 metalness: 0.05
               });
             }
@@ -690,8 +728,8 @@
                 envMapIntensity: 1.35
               });
             }
-            // H. Mirror Backlight Frame (Warm 3000K LED Halo Glow)
-            else if (name.startsWith('Mirror_Backlight_Frame')) {
+            // H. LED Accents: Mirror Halo, Recessed Shower Niche & Floating Vanity Toe-Kick
+            else if (name.startsWith('Mirror_Backlight_Frame') || name.includes('LED') || matName.includes('LED_Glow')) {
               child.material = new THREE.MeshBasicMaterial({
                 color: new THREE.Color(0xffe2b3)
               });
