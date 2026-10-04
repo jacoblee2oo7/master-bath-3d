@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Master Bathroom Remodel — 3D Walkthrough</title>
+  
+  <!-- Import Three.js via ES Modules -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #090d16;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      color: #f8fafc;
+      touch-action: none; /* Prevents iOS Safari pull-to-refresh & navigation swipes */
+    }
+
+    #webgl-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 1;
+    }
+
+    /* Top HUD Header */
+    header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: max(12px, env(safe-area-inset-top)) 16px 12px;
+      background: linear-gradient(to bottom, rgba(9,13,22,0.85) 0%, rgba(9,13,22,0) 100%);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .title-group {
+      pointer-events: auto;
+    }
+
+    h1 {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: #ffffff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    }
+
+    .subtitle {
+      font-size: 11px;
+      color: #94a3b8;
+      font-weight: 500;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    }
+
+    .top-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      pointer-events: auto;
+    }
+
+    .mode-pill {
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 9999px;
+      padding: 3px;
+      display: flex;
+      gap: 2px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    .mode-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .mode-btn.active {
+      background: #3b82f6;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.5);
+    }
+
+    .icon-btn {
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #cbd5e1;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      transition: all 0.2s;
+    }
+
+    .icon-btn:active, .icon-btn.active {
+      background: #2563eb;
+      color: #ffffff;
+      border-color: #60a5fa;
+    }
+
+    /* Mobile-specific responsive tweaks */
+    @media (max-width: 600px) {
+      header {
+        padding: max(8px, env(safe-area-inset-top)) 12px 6px;
+      }
+      h1 { font-size: 13px; }
+      .subtitle { display: none; }
+      .mode-btn { padding: 5px 8px; font-size: 10px; }
+      .icon-btn { width: 30px; height: 30px; font-size: 12px; }
+      #minimap-container {
+        width: 76px;
+        height: 68px;
+        top: max(48px, env(safe-area-inset-top));
+        right: 12px;
+      }
+      #joystick-zone {
+        bottom: max(68px, env(safe-area-inset-bottom));
+        left: 12px;
+        width: 110px;
+        height: 110px;
+      }
+      .joystick-base {
+        width: 100px;
+        height: 100px;
+      }
+      .joystick-stick {
+        width: 44px;
+        height: 44px;
+      }
+      .teleport-bar {
+        bottom: max(12px, env(safe-area-inset-bottom));
+        padding: 4px 6px;
+        gap: 4px;
+      }
+      .tp-btn {
+        padding: 6px 9px;
+        font-size: 10px;
+        gap: 3px;
+      }
+    }
+
+    /* Interactive Minimap */
+    #minimap-container {
+      position: absolute;
+      top: max(58px, env(safe-area-inset-top));
+      right: 16px;
+      width: 90px;
+      height: 80px;
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 10px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+      z-index: 20;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    #minimap-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .minimap-label {
+      position: absolute;
+      bottom: 2px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 8px;
+      font-weight: 700;
+      color: #64748b;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      pointer-events: none;
+    }
+
+    /* Virtual Joystick Overlay */
+    #joystick-zone {
+      position: absolute;
+      bottom: max(80px, env(safe-area-inset-bottom));
+      left: 20px;
+      width: 130px;
+      height: 130px;
+      z-index: 25;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+    }
+
+    .joystick-base {
+      width: 120px;
+      height: 120px;
+      background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 70%, rgba(255,255,255,0.1) 100%);
+      border: 1.5px solid rgba(255,255,255,0.25);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 0 16px rgba(255,255,255,0.05);
+      position: relative;
+      transition: border-color 0.2s;
+    }
+
+    .joystick-base::after {
+      content: "WALK";
+      position: absolute;
+      bottom: 12px;
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: rgba(255,255,255,0.3);
+    }
+
+    .joystick-stick {
+      width: 50px;
+      height: 50px;
+      background: radial-gradient(circle, #60a5fa 0%, #2563eb 100%);
+      border: 2px solid rgba(255,255,255,0.8);
+      border-radius: 50%;
+      box-shadow: 0 4px 14px rgba(37,99,235,0.6);
+      position: absolute;
+      transform: translate(0px, 0px);
+      will-change: transform;
+      pointer-events: none;
+    }
+
+    /* Swipe-to-Look Prompt */
+    .look-hint {
+      position: absolute;
+      right: 24px;
+      bottom: max(96px, env(safe-area-inset-bottom));
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      color: #94a3b8;
+      pointer-events: none;
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      animation: pulseHint 3s infinite ease-in-out;
+    }
+
+    @keyframes pulseHint {
+      0%, 100% { opacity: 0.8; transform: translateY(0); }
+      50% { opacity: 0.4; transform: translateY(-3px); }
+    }
+
+    /* Bottom Teleport Bar */
+    .teleport-bar {
+      position: absolute;
+      bottom: max(16px, env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      padding: 6px 8px;
+      border-radius: 9999px;
+      border: 1px solid rgba(255,255,255,0.15);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+      max-width: 95vw;
+      overflow-x: auto;
+      scrollbar-width: none;
+      z-index: 30;
+      pointer-events: auto;
+    }
+
+    .teleport-bar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tp-btn {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #e2e8f0;
+      padding: 7px 12px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .tp-btn:active, .tp-btn.active {
+      background: #3b82f6;
+      border-color: #60a5fa;
+      color: #ffffff;
+      transform: scale(0.95);
+    }
+
+    /* Loading Screen */
+    #loader {
+      position: absolute;
+      inset: 0;
+      background: #090d16;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.5s ease;
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loader-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 6px;
+    }
+
+    .loader-progress {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    /* Reticle (Crosshair for center orientation) */
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 6px;
+      height: 6px;
+      background: rgba(255,255,255,0.5);
+      border-radius: 50%;
+      box-shadow: 0 0 4px rgba(0,0,0,0.5);
+      pointer-events: none;
+      z-index: 10;
+      transition: opacity 0.3s;
+    }
+
+    /* Helper notification toast */
+    #toast {
+      position: absolute;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 50;
+    }
+
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loading Overlay -->
+  <div id="loader">
+    <div class="spinner"></div>
+    <div class="loader-title">Loading Bathroom Walkthrough...</div>
+    <div class="loader-progress" id="load-status">Preparing 3D geometry & textures</div>
+  </div>
+
+  <!-- Main WebGL 3D Canvas -->
+  <canvas id="webgl-canvas"></canvas>
+
+  <!-- Walk Center Reticle -->
+  <div id="crosshair"></div>
+
+  <!-- Toast Notification -->
+  <div id="toast">Vanity View</div>
+
+  <!-- Top Header HUD -->
+  <header>
+    <div class="title-group">
+      <h1>Master Bathroom Remodel</h1>
+      <div class="subtitle">10'-6 1/2" × 9'-2 1/4" • First-Person Walk</div>
+    </div>
+
+    <div class="top-actions">
+      <!-- Mode Toggle -->
+      <div class="mode-pill">
+        <button id="btn-mode-walk" class="mode-btn active" onclick="setMode('walk')">🚶‍♂️ Walk</button>
+        <button id="btn-mode-orbit" class="mode-btn" onclick="setMode('orbit')">🏠 Orbit</button>
+      </div>
+
+      <!-- Gyro Toggle (Mobile Safari) -->
+      <button id="btn-gyro" class="icon-btn" title="Toggle Motion Gyroscope" onclick="toggleGyro()">🧭</button>
+    </div>
+  </header>
+
+  <!-- Top-Right 2D Live Minimap -->
+  <div id="minimap-container" title="Interactive Minimap (Tap to jump)">
+    <canvas id="minimap-canvas" width="90" height="80"></canvas>
+    <div class="minimap-label">MAP</div>
+  </div>
+
+  <!-- Touch Joystick (Left Thumb) -->
+  <div id="joystick-zone">
+    <div class="joystick-base" id="joystick-base">
+      <div class="joystick-stick" id="joystick-stick"></div>
+    </div>
+  </div>
+
+  <!-- Swipe Hint (Right Thumb) -->
+  <div class="look-hint" id="look-hint">
+    <span>👈 Drag screen to look</span>
+  </div>
+
+  <!-- Bottom Teleport Landmark Buttons -->
+  <div class="teleport-bar">
+    <button class="tp-btn active" data-key="entrance" onclick="teleport('entrance', this)">🚪 Door</button>
+    <button class="tp-btn" data-key="vanity" onclick="teleport('vanity', this)">🪞 Vanity</button>
+    <button class="tp-btn" data-key="shower" onclick="teleport('shower', this)">🚿 Shower</button>
+    <button class="tp-btn" data-key="tub" onclick="teleport('tub', this)">🛁 Tub</button>
+    <button class="tp-btn" data-key="toilet" onclick="teleport('toilet', this)">🚽 Toilet</button>
+    <button class="tp-btn" data-key="center" onclick="teleport('center', this)">📍 Center</button>
+  </div>
+
+  <!-- Three.js Walkthrough Engine -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // ----------------------------------------------------
+    // 1. Scene, Renderer, Camera Setup
+    // ----------------------------------------------------
+    const canvas = document.getElementById('webgl-canvas');
+    const renderer = new THREE.WebGLRenderer({
+      canvas: canvas,
+      antialias: true,
+      powerPreference: 'high-performance'
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0c1322);
+
+    // Eye-level constant (5' 1" AFF = 1.55m)
+    const EYE_HEIGHT = 1.55;
+
+    // First Person Camera
+    const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 50);
+    // Start at Door Entrance
+    camera.position.set(2.95, EYE_HEIGHT, -1.58);
+
+    // Orbit Controls (for Dollhouse mode)
+    const orbitControls = new OrbitControls(camera, renderer.domElement);
+    orbitControls.enabled = false;
+    orbitControls.enableDamping = true;
+    orbitControls.dampingFactor = 0.06;
+    orbitControls.maxPolarAngle = Math.PI / 2 - 0.02; // Don't flip below floor
+    orbitControls.minDistance = 1.2;
+    orbitControls.maxDistance = 8.0;
+    orbitControls.target.set(1.61, 1.0, -1.42);
+
+    // ----------------------------------------------------
+    // 2. Realistic Architectural Lighting
+    // ----------------------------------------------------
+    // Ambient soft fill
+    const ambientLight = new THREE.AmbientLight(0xfff5ea, 0.85);
+    scene.add(ambientLight);
+
+    // Warm ceiling bounce
+    const hemiLight = new THREE.HemisphereLight(0xfffaed, 0x1e293b, 0.7);
+    scene.add(hemiLight);
+
+    // Window sunlight (from garden window on South wall at Z = -0.5m)
+    const sunLight = new THREE.DirectionalLight(0xfffae0, 1.6);
+    sunLight.position.set(1.9, 2.5, 0.8);
+    sunLight.target.position.set(1.6, 0.8, -1.5);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 1024;
+    sunLight.shadow.mapSize.height = 1024;
+    sunLight.shadow.bias = -0.0005;
+    scene.add(sunLight);
+    scene.add(sunLight.target);
+
+    // Vanity mirror LED glow (North wall at Z = -2.55m)
+    const vanityGlow = new THREE.PointLight(0xffeedd, 1.8, 4.0);
+    vanityGlow.position.set(2.13, 1.8, -2.2);
+    scene.add(vanityGlow);
+
+    // Shower recessed niche light
+    const showerLight = new THREE.PointLight(0xffffff, 1.2, 3.5);
+    showerLight.position.set(0.65, 2.1, -2.1);
+    scene.add(showerLight);
+
+    // ----------------------------------------------------
+    // 3. Load 3D Dollhouse Model (.glb)
+    // ----------------------------------------------------
+    const loader = new GLTFLoader();
+    const loadStatus = document.getElementById('load-status');
+    const loaderEl = document.getElementById('loader');
+
+    loader.load(
+      'master_bathroom_dollhouse.glb',
+      (gltf) => {
+        const model = gltf.scene;
+
+        model.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (child.material) {
+              child.material.roughness = Math.max(child.material.roughness, 0.15);
+              child.material.envMapIntensity = 1.0;
+            }
+          }
+        });
+
+        scene.add(model);
+
+        // Hide loader screen
+        loadStatus.innerText = 'Scene Ready!';
+        setTimeout(() => {
+          loaderEl.style.opacity = '0';
+          setTimeout(() => { loaderEl.style.display = 'none'; }, 500);
+        }, 200);
+
+        // Render initial minimap
+        drawMinimap();
+      },
+      (xhr) => {
+        if (xhr.lengthComputable) {
+          const pct = Math.round((xhr.loaded / xhr.total) * 100);
+          loadStatus.innerText = `Loading 3D Model: ${pct}%`;
+        }
+      },
+      (err) => {
+        console.error('Failed to load GLB:', err);
+        loadStatus.innerText = 'Failed to load model. Please refresh.';
+      }
+    );
+
+    // ----------------------------------------------------
+    // 4. First-Person Camera State & Landmarks
+    // ----------------------------------------------------
+    let currentMode = 'walk'; // 'walk' or 'orbit'
+    let yaw = Math.PI / 2; // Face West initially (toward -X into the room)
+    let pitch = 0;
+    const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+
+    // Landmarks coordinates (X, Y, Z, yaw, pitch)
+    const LANDMARKS = {
+      entrance: { pos: new THREE.Vector3(2.95, EYE_HEIGHT, -1.58), yaw: Math.PI / 2, pitch: 0, label: 'Doorway Entrance' },
+      vanity:   { pos: new THREE.Vector3(2.13, EYE_HEIGHT, -1.75), yaw: 0, pitch: 0.02, label: 'Vanity & Mirrors' },
+      shower:   { pos: new THREE.Vector3(0.65, EYE_HEIGHT, -1.95), yaw: Math.PI / 2, pitch: 0, label: 'Shower Enclosure' },
+      tub:      { pos: new THREE.Vector3(1.85, EYE_HEIGHT, -1.25), yaw: Math.PI, pitch: -0.12, label: 'Soaking Tub' },
+      toilet:   { pos: new THREE.Vector3(0.55, EYE_HEIGHT, -1.15), yaw: Math.PI, pitch: -0.08, label: 'Toilet Alcove' },
+      center:   { pos: new THREE.Vector3(1.61, EYE_HEIGHT, -1.42), yaw: Math.PI / 2, pitch: 0, label: 'Room Center' }
+    };
+
+    // Camera tweening animation
+    let isTransitioning = false;
+    let transitionStart = 0;
+    const transitionDuration = 700; // ms
+    let startPos = new THREE.Vector3();
+    let targetPos = new THREE.Vector3();
+    let startYaw = 0, targetYaw = 0;
+    let startPitch = 0, targetPitch = 0;
+
+    function applyRotation() {
+      euler.set(pitch, yaw, 0, 'YXZ');
+      camera.quaternion.setFromEuler(euler);
+    }
+    applyRotation();
+
+    // ----------------------------------------------------
+    // 5. Room Bounds & Collision
+    // ----------------------------------------------------
+    // Dimensions in Three.js (glTF space):
+    // X: West wall ~ 0.35m to East wall ~ 3.05m
+    // Z: North wall ~ -2.45m to South wall ~ -0.45m
+    const BOUNDS = {
+      minX: 0.35,
+      maxX: 3.05,
+      minZ: -2.45,
+      maxZ: -0.45
+    };
+
+    // Obstacle bounding boxes for sliding collision [minX, maxX, minZ, maxZ]
+    const OBSTACLES = [
+      // Vanity cabinet footprint
+      { minX: 1.15, maxX: 3.05, minZ: -2.55, maxZ: -2.00 },
+      // Soaking tub basin footprint
+      { minX: 1.05, maxX: 2.75, minZ: -0.90, maxZ: -0.20 },
+      // Toilet fixture footprint
+      { minX: 0.15, maxX: 0.90, minZ: -0.85, maxZ: -0.30 }
+    ];
+
+    function clampPosition(pos) {
+      // Keep strictly within room exterior walls
+      pos.x = Math.max(BOUNDS.minX, Math.min(BOUNDS.maxX, pos.x));
+      pos.z = Math.max(BOUNDS.minZ, Math.min(BOUNDS.maxZ, pos.z));
+      pos.y = EYE_HEIGHT;
+
+      // Obstacle collision pushback
+      for (const obs of OBSTACLES) {
+        if (pos.x > obs.minX && pos.x < obs.maxX && pos.z > obs.minZ && pos.z < obs.maxZ) {
+          // Push to nearest exterior edge
+          const dLeft = Math.abs(pos.x - obs.minX);
+          const dRight = Math.abs(pos.x - obs.maxX);
+          const dTop = Math.abs(pos.z - obs.minZ);
+          const dBot = Math.abs(pos.z - obs.maxZ);
+          const minD = Math.min(dLeft, dRight, dTop, dBot);
+
+          if (minD === dLeft) pos.x = obs.minX - 0.02;
+          else if (minD === dRight) pos.x = obs.maxX + 0.02;
+          else if (minD === dTop) pos.z = obs.minZ - 0.02;
+          else pos.z = obs.maxZ + 0.02;
+        }
+      }
+    }
+
+    // ----------------------------------------------------
+    // 6. Touch Controls (Joystick + Look Drag)
+    // ----------------------------------------------------
+    const joystickZone = document.getElementById('joystick-zone');
+    const joystickBase = document.getElementById('joystick-base');
+    const joystickStick = document.getElementById('joystick-stick');
+    const lookHint = document.getElementById('look-hint');
+
+    let joystickActive = false;
+    let joystickTouchId = null;
+    let joystickVector = { x: 0, y: 0 }; // [-1, 1]
+    const joystickRadius = 40; // Max stick deflection in px
+
+    let lookActive = false;
+    let lookTouchId = null;
+    let lookStart = { x: 0, y: 0 };
+    let hasInteractedLook = false;
+
+    // Movement speeds
+    const WALK_SPEED = 1.8; // meters per second
+    const LOOK_SPEED = 0.0045; // touch sensitivity
+
+    // Handle touch start anywhere on window
+    window.addEventListener('touchstart', (e) => {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        const tx = touch.clientX;
+        const ty = touch.clientY;
+
+        // Ignore touches on UI controls
+        if (touch.target && touch.target.closest && touch.target.closest('button, #minimap-container, .teleport-bar, header')) {
+          continue;
+        }
+
+        // Check if touch is inside the Joystick zone (bottom-left)
+        const rect = joystickZone.getBoundingClientRect();
+        if (
+          !joystickActive &&
+          currentMode === 'walk' &&
+          tx >= rect.left - 25 && tx <= rect.right + 25 &&
+          ty >= rect.top - 25 && ty <= rect.bottom + 25
+        ) {
+          joystickActive = true;
+          joystickTouchId = touch.identifier;
+          updateJoystick(touch.clientX, touch.clientY);
+          if (e.cancelable) e.preventDefault();
+          continue;
+        }
+
+        // Otherwise treat as Look drag
+        if (!lookActive && currentMode === 'walk') {
+          lookActive = true;
+          lookTouchId = touch.identifier;
+          lookStart.x = touch.clientX;
+          lookStart.y = touch.clientY;
+
+          if (!hasInteractedLook) {
+            hasInteractedLook = true;
+            if (lookHint) lookHint.style.display = 'none';
+          }
+          if (e.cancelable) e.preventDefault();
+        }
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+
+        if (joystickActive && touch.identifier === joystickTouchId) {
+          updateJoystick(touch.clientX, touch.clientY);
+          e.preventDefault();
+        } else if (lookActive && touch.identifier === lookTouchId) {
+          const dx = touch.clientX - lookStart.x;
+          const dy = touch.clientY - lookStart.y;
+          lookStart.x = touch.clientX;
+          lookStart.y = touch.clientY;
+
+          yaw -= dx * LOOK_SPEED;
+          pitch -= dy * LOOK_SPEED;
+          pitch = Math.max(-Math.PI / 2.3, Math.min(Math.PI / 2.3, pitch));
+          applyRotation();
+          e.preventDefault();
+        }
+      }
+    }, { passive: false });
+
+    function resetJoystick() {
+      joystickActive = false;
+      joystickTouchId = null;
+      joystickVector.x = 0;
+      joystickVector.y = 0;
+      joystickStick.style.transform = `translate(0px, 0px)`;
+      joystickBase.style.borderColor = 'rgba(255,255,255,0.25)';
+    }
+
+    window.addEventListener('touchend', (e) => {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        if (touch.identifier === joystickTouchId) resetJoystick();
+        if (touch.identifier === lookTouchId) {
+          lookActive = false;
+          lookTouchId = null;
+        }
+      }
+    });
+
+    window.addEventListener('touchcancel', (e) => {
+      resetJoystick();
+      lookActive = false;
+      lookTouchId = null;
+    });
+
+    function updateJoystick(clientX, clientY) {
+      const rect = joystickBase.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      let dx = clientX - centerX;
+      let dy = clientY - centerY;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist > joystickRadius) {
+        dx = (dx / dist) * joystickRadius;
+        dy = (dy / dist) * joystickRadius;
+      }
+
+      joystickStick.style.transform = `translate(${dx}px, ${dy}px)`;
+      joystickBase.style.borderColor = '#60a5fa';
+
+      // Normalized joystick output [-1, 1]
+      joystickVector.x = dx / joystickRadius;
+      joystickVector.y = dy / joystickRadius;
+    }
+
+    // ----------------------------------------------------
+    // 7. Desktop Keyboard & Mouse Fallback
+    // ----------------------------------------------------
+    const keys = {};
+    window.addEventListener('keydown', (e) => { keys[e.code] = true; });
+    window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+    let isMouseDown = false;
+    let mouseStart = { x: 0, y: 0 };
+    window.addEventListener('mousedown', (e) => {
+      if (currentMode !== 'walk') return;
+      if (e.clientY < 60 || e.clientY > window.innerHeight - 80) return;
+      isMouseDown = true;
+      mouseStart.x = e.clientX;
+      mouseStart.y = e.clientY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isMouseDown || currentMode !== 'walk') return;
+      const dx = e.clientX - mouseStart.x;
+      const dy = e.clientY - mouseStart.y;
+      mouseStart.x = e.clientX;
+      mouseStart.y = e.clientY;
+
+      yaw -= dx * 0.003;
+      pitch -= dy * 0.003;
+      pitch = Math.max(-Math.PI / 2.3, Math.min(Math.PI / 2.3, pitch));
+      applyRotation();
+    });
+
+    window.addEventListener('mouseup', () => { isMouseDown = false; });
+
+    // ----------------------------------------------------
+    // 8. Mode Switching (Walk vs Orbit)
+    // ----------------------------------------------------
+    window.setMode = function(mode) {
+      if (mode === currentMode) return;
+      currentMode = mode;
+
+      const btnWalk = document.getElementById('btn-mode-walk');
+      const btnOrbit = document.getElementById('btn-mode-orbit');
+      const crosshair = document.getElementById('crosshair');
+
+      if (mode === 'walk') {
+        btnWalk.classList.add('active');
+        btnOrbit.classList.remove('active');
+        joystickZone.style.display = 'flex';
+        crosshair.style.opacity = '1';
+        orbitControls.enabled = false;
+
+        // Show ceiling & overhead lights for walk immersion
+        scene.traverse(child => {
+          if (child.name && (child.name.startsWith('Ceiling_') || child.name.startsWith('Downlight_'))) {
+            child.visible = true;
+          }
+        });
+
+        // Smooth transition to eye level at current position
+        const targetWalkPos = new THREE.Vector3(camera.position.x, EYE_HEIGHT, camera.position.z);
+        clampPosition(targetWalkPos);
+        startCameraTransition(targetWalkPos, yaw, 0, () => {
+          applyRotation();
+        });
+        showToast('🚶 Walk Mode: Use Joystick & Swipe');
+      } else {
+        btnOrbit.classList.add('active');
+        btnWalk.classList.remove('active');
+        joystickZone.style.display = 'none';
+        crosshair.style.opacity = '0';
+
+        // Hide ceiling & downlights so user can look down into the cutaway dollhouse
+        scene.traverse(child => {
+          if (child.name && (child.name.startsWith('Ceiling_') || child.name.startsWith('Downlight_'))) {
+            child.visible = false;
+          }
+        });
+
+        // Transition camera to top-angle isometric dollhouse view
+        const dollhousePos = new THREE.Vector3(1.61, 4.8, 1.8);
+        orbitControls.target.set(1.61, 0.8, -1.42);
+
+        startCameraTransition(dollhousePos, -Math.PI / 4, -Math.PI / 6, () => {
+          orbitControls.enabled = true;
+          orbitControls.update();
+        });
+        showToast('🏠 Orbit Mode: Drag to spin, pinch to zoom');
+      }
+    };
+
+    // ----------------------------------------------------
+    // 9. Teleport Transitions
+    // ----------------------------------------------------
+    window.teleport = function(key, btn) {
+      const spot = LANDMARKS[key];
+      if (!spot) return;
+
+      // Update active button styling
+      document.querySelectorAll('.tp-btn').forEach(b => b.classList.remove('active'));
+      if (btn) {
+        btn.classList.add('active');
+      } else {
+        const el = document.querySelector(`.tp-btn[data-key="${key}"]`);
+        if (el) el.classList.add('active');
+      }
+
+      if (currentMode !== 'walk') {
+        window.setMode('walk');
+      }
+
+      showToast(`📍 ${spot.label}`);
+      startCameraTransition(spot.pos.clone(), spot.yaw, spot.pitch);
+    };
+
+    function startCameraTransition(pos, toYaw, toPitch, onComplete) {
+      isTransitioning = true;
+      transitionStart = performance.now();
+      startPos.copy(camera.position);
+      targetPos.copy(pos);
+      startYaw = yaw;
+      targetYaw = toYaw;
+      startPitch = pitch;
+      targetPitch = toPitch;
+
+      // Wrap yaw to shortest rotational arc
+      let diff = targetYaw - startYaw;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      targetYaw = startYaw + diff;
+
+      function checkDone() {
+        if (!isTransitioning && onComplete) onComplete();
+      }
+      setTimeout(checkDone, transitionDuration + 50);
+    }
+
+    // ----------------------------------------------------
+    // 10. Gyroscope Motion Tracking (iOS Safari)
+    // ----------------------------------------------------
+    let gyroActive = false;
+    let baseAlpha = null;
+    const btnGyro = document.getElementById('btn-gyro');
+
+    window.toggleGyro = function() {
+      if (!window.DeviceOrientationEvent) {
+        showToast('Orientation sensor not supported');
+        return;
+      }
+
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission()
+          .then(permissionState => {
+            if (permissionState === 'granted') {
+              activateGyro();
+            } else {
+              showToast('Motion permission denied');
+            }
+          })
+          .catch(err => {
+            console.error('Permission error:', err);
+            showToast('Motion sensor error');
+          });
+      } else {
+        activateGyro();
+      }
+    };
+
+    function activateGyro() {
+      gyroActive = !gyroActive;
+      btnGyro.classList.toggle('active', gyroActive);
+
+      if (gyroActive) {
+        baseAlpha = null;
+        window.addEventListener('deviceorientation', onDeviceOrientation, true);
+        showToast('🧭 Gyroscope Look Enabled');
+      } else {
+        window.removeEventListener('deviceorientation', onDeviceOrientation, true);
+        showToast('Gyroscope Disabled');
+      }
+    }
+
+    function onDeviceOrientation(event) {
+      if (!gyroActive || currentMode !== 'walk' || isTransitioning) return;
+      if (baseAlpha === null && event.alpha !== null) baseAlpha = event.alpha;
+
+      // Calculate relative device pitch and roll
+      const beta = event.beta; // [-180, 180] (tilt forward/back)
+      const gamma = event.gamma; // [-90, 90] (tilt left/right)
+
+      if (beta !== null && gamma !== null) {
+        // Map beta to pitch
+        const targetP = THREE.MathUtils.degToRad(beta - 70);
+        pitch = Math.max(-Math.PI / 2.3, Math.min(Math.PI / 2.3, targetP));
+        applyRotation();
+      }
+    }
+
+    // ----------------------------------------------------
+    // 11. Toast Notifications
+    // ----------------------------------------------------
+    const toast = document.getElementById('toast');
+    let toastTimeout;
+    function showToast(msg) {
+      toast.innerText = msg;
+      toast.classList.add('show');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2200);
+    }
+
+    // ----------------------------------------------------
+    // 12. Live Minimap Drawing & Tap-to-Teleport
+    // ----------------------------------------------------
+    const minimapCanvas = document.getElementById('minimap-canvas');
+    const mctx = minimapCanvas.getContext('2d');
+    const minimapContainer = document.getElementById('minimap-container');
+
+    // Bounds mapping to canvas:
+    // Room in 3D: X: [0.1 (West), 3.2 (East)], Z: [-2.6 (North), -0.3 (South)]
+    // In Architectural orientation: North is Top, South is Bottom, West is Left, East is Right
+    function worldToMap(x, z) {
+      const mx = ((x - 0.1) / 3.1) * 82 + 4;
+      const my = ((z + 2.6) / 2.3) * 70 + 5;
+      return { x: mx, y: my };
+    }
+
+    function mapToWorld(mx, my) {
+      const x = ((mx - 4) / 82) * 3.1 + 0.1;
+      const z = ((my - 5) / 70) * 2.3 - 2.6;
+      return { x, z };
+    }
+
+    function drawMinimap() {
+      mctx.clearRect(0, 0, 90, 80);
+
+      // Room interior background
+      mctx.fillStyle = '#1e293b';
+      mctx.fillRect(4, 5, 82, 70);
+
+      // Walls outline
+      mctx.strokeStyle = '#475569';
+      mctx.lineWidth = 1.5;
+      mctx.strokeRect(4, 5, 82, 70);
+
+      // 1. Vanity footprint (North wall, Top-right)
+      const vTop = worldToMap(1.22, -2.55);
+      const vBot = worldToMap(3.05, -2.00);
+      mctx.fillStyle = '#334155';
+      mctx.fillRect(vTop.x, vTop.y, vBot.x - vTop.x, vBot.y - vTop.y);
+      mctx.strokeStyle = '#64748b';
+      mctx.strokeRect(vTop.x, vTop.y, vBot.x - vTop.x, vBot.y - vTop.y);
+
+      // 2. Shower footprint (Northwest, Top-left)
+      const sTop = worldToMap(0.15, -2.55);
+      const sBot = worldToMap(1.05, -1.50);
+      mctx.fillStyle = '#0e7490';
+      mctx.fillRect(sTop.x, sTop.y, sBot.x - sTop.x, sBot.y - sTop.y);
+      mctx.strokeStyle = '#38bdf8';
+      mctx.strokeRect(sTop.x, sTop.y, sBot.x - sTop.x, sBot.y - sTop.y);
+
+      // 3. Soaking Tub footprint (South, Bottom-right)
+      const tTop = worldToMap(1.10, -0.95);
+      const tBot = worldToMap(2.80, -0.25);
+      mctx.fillStyle = '#065f46';
+      mctx.beginPath();
+      mctx.roundRect(tTop.x, tTop.y, tBot.x - tTop.x, tBot.y - tTop.y, 6);
+      mctx.fill();
+      mctx.strokeStyle = '#34d399';
+      mctx.stroke();
+
+      // 4. Toilet footprint (Southwest, Bottom-left)
+      const toiletPt = worldToMap(0.45, -0.60);
+      mctx.fillStyle = '#475569';
+      mctx.fillRect(toiletPt.x - 5, toiletPt.y - 7, 10, 14);
+
+      // 5. Door Entrance (East wall)
+      const doorPt = worldToMap(3.15, -1.58);
+      mctx.strokeStyle = '#f59e0b';
+      mctx.lineWidth = 2;
+      mctx.beginPath();
+      mctx.moveTo(doorPt.x, doorPt.y - 8);
+      mctx.lineTo(doorPt.x, doorPt.y + 8);
+      mctx.stroke();
+
+      // 6. User Position & Vision Cone
+      const user = worldToMap(camera.position.x, camera.position.z);
+
+      // Vision cone
+      mctx.fillStyle = 'rgba(59, 130, 246, 0.4)';
+      mctx.beginPath();
+      mctx.moveTo(user.x, user.y);
+      const coneAngle = 0.45; // radians
+      const mapAngle = -yaw - Math.PI / 2;
+      mctx.arc(user.x, user.y, 16, mapAngle - coneAngle, mapAngle + coneAngle);
+      mctx.closePath();
+      mctx.fill();
+
+      // User dot
+      mctx.fillStyle = '#38bdf8';
+      mctx.beginPath();
+      mctx.arc(user.x, user.y, 3.5, 0, Math.PI * 2);
+      mctx.fill();
+      mctx.strokeStyle = '#ffffff';
+      mctx.lineWidth = 1.2;
+      mctx.stroke();
+    }
+
+    // Tap on minimap to teleport
+    minimapContainer.addEventListener('click', (e) => {
+      const rect = minimapCanvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const worldTarget = mapToWorld(mx, my);
+
+      const targetVec = new THREE.Vector3(worldTarget.x, EYE_HEIGHT, worldTarget.z);
+      clampPosition(targetVec);
+
+      if (currentMode !== 'walk') window.setMode('walk');
+      showToast('Teleported via Minimap');
+      startCameraTransition(targetVec, yaw, pitch);
+    });
+
+    // ----------------------------------------------------
+    // 13. Main Animation Loop
+    // ----------------------------------------------------
+    const clock = new THREE.Clock();
+    const moveVector = new THREE.Vector3();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = Math.min(clock.getDelta(), 0.1);
+
+      // Handle Camera Transition (Smooth Slerp / Tween)
+      if (isTransitioning) {
+        const elapsed = performance.now() - transitionStart;
+        const progress = Math.min(elapsed / transitionDuration, 1.0);
+        // Ease In-Out Cubic
+        const ease = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+        camera.position.lerpVectors(startPos, targetPos, ease);
+        yaw = THREE.MathUtils.lerp(startYaw, targetYaw, ease);
+        pitch = THREE.MathUtils.lerp(startPitch, targetPitch, ease);
+        applyRotation();
+
+        if (progress >= 1.0) {
+          isTransitioning = false;
+        }
+      } else if (currentMode === 'walk') {
+        // First-Person Walk Movement
+        moveVector.set(0, 0, 0);
+
+        // Joystick Input
+        if (joystickActive) {
+          // joystickVector.y: negative = forward, positive = backward
+          // joystickVector.x: negative = strafe left, positive = strafe right
+          moveVector.z -= joystickVector.y;
+          moveVector.x += joystickVector.x;
+        }
+
+        // Keyboard Input (Desktop fallback)
+        if (keys['KeyW'] || keys['ArrowUp']) moveVector.z += 1;
+        if (keys['KeyS'] || keys['ArrowDown']) moveVector.z -= 1;
+        if (keys['KeyA']) moveVector.x -= 1;
+        if (keys['KeyD']) moveVector.x += 1;
+        if (keys['ArrowLeft']) { yaw += 1.8 * delta; applyRotation(); }
+        if (keys['ArrowRight']) { yaw -= 1.8 * delta; applyRotation(); }
+
+        if (moveVector.lengthSq() > 0.0001) {
+          moveVector.normalize();
+
+          // Calculate horizontal camera forward and right directions
+          const forward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).negate();
+          const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+
+          const step = (moveVector.z * WALK_SPEED * delta);
+          const strafe = (moveVector.x * WALK_SPEED * delta);
+
+          camera.position.addScaledVector(forward, step);
+          camera.position.addScaledVector(right, strafe);
+
+          clampPosition(camera.position);
+        }
+      } else if (currentMode === 'orbit') {
+        orbitControls.update();
+      }
+
+      // Live update minimap
+      drawMinimap();
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // ----------------------------------------------------
+    // 14. Responsive Window Resize & Orientation Change
+    // ----------------------------------------------------
+    function onWindowResize() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const aspect = w / h;
+      camera.aspect = aspect;
+      if (aspect < 1.0) {
+        // Mobile portrait: widen vertical FOV so horizontal coverage feels natural
+        camera.fov = 82;
+      } else {
+        camera.fov = 68;
+      }
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    }
+    window.addEventListener('resize', onWindowResize);
+    onWindowResize();
+
+  </script>
+</body>
+</html>
